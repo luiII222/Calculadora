@@ -1,0 +1,285 @@
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { CalendarIcon, Save, Trophy, Zap } from 'lucide-react'
+import { format } from 'date-fns'
+import { Calendar } from '@/components/ui/calendar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { toast } from '@/components/ui/use-toast'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Progress } from "@/components/ui/progress"
+
+const EnhancedSavingsCalculator = () => {
+  const [startDate, setStartDate] = useState<Date>(new Date('2025-01-06'))
+  const [endDate, setEndDate] = useState<Date>(new Date('2025-05-01'))
+  const [targetAmount, setTargetAmount] = useState(10000)
+  const [savedAmount, setSavedAmount] = useState(0)
+
+  const [totalDays, setTotalDays] = useState(0)
+  const [totalWeeks, setTotalWeeks] = useState(0)
+  const [dailyAmount, setDailyAmount] = useState(0)
+  const [weeklyAmount, setWeeklyAmount] = useState(0)
+  const [monthlyAmount, setMonthlyAmount] = useState(0)
+
+  const [streak, setStreak] = useState(0)
+  const [lastSaveDate, setLastSaveDate] = useState<Date | null>(null)
+  const [achievements, setAchievements] = useState<string[]>([])
+
+  useEffect(() => {
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    const weeks = Math.ceil(days / 7)
+    
+    setTotalDays(days)
+    setTotalWeeks(weeks)
+    setDailyAmount(targetAmount / days)
+    setWeeklyAmount(targetAmount / weeks)
+    setMonthlyAmount(targetAmount / Math.ceil(days / 30))
+  }, [startDate, endDate, targetAmount])
+
+  useEffect(() => {
+    // Load saved data when component mounts
+    const savedData = localStorage.getItem('savingsCalculatorData')
+    if (savedData) {
+      const parsedData = JSON.parse(savedData)
+      setStartDate(new Date(parsedData.startDate))
+      setEndDate(new Date(parsedData.endDate))
+      setTargetAmount(parsedData.targetAmount)
+      setSavedAmount(parsedData.savedAmount)
+      setStreak(parsedData.streak || 0)
+      setLastSaveDate(parsedData.lastSaveDate ? new Date(parsedData.lastSaveDate) : null)
+      setAchievements(parsedData.achievements || [])
+    }
+  }, [])
+
+  const progressPercentage = Math.min((savedAmount / targetAmount) * 100, 100)
+
+  const saveProgress = () => {
+    const today = new Date()
+    let newStreak = streak
+    let newAchievements = [...achievements]
+
+    if (lastSaveDate) {
+      const daysSinceLastSave = Math.floor((today.getTime() - lastSaveDate.getTime()) / (1000 * 60 * 60 * 24))
+      if (daysSinceLastSave === 1) {
+        newStreak += 1
+        if (newStreak === 7 && !achievements.includes('Semana Perfeita')) {
+          newAchievements.push('Semana Perfeita')
+          toast({
+            title: "Conquista Desbloqueada!",
+            description: "Você alcançou uma Semana Perfeita!",
+          })
+        }
+      } else if (daysSinceLastSave > 1) {
+        newStreak = 1
+      }
+    } else {
+      newStreak = 1
+    }
+
+    if (savedAmount >= targetAmount && !achievements.includes('Meta Alcançada')) {
+      newAchievements.push('Meta Alcançada')
+      toast({
+        title: "Conquista Desbloqueada!",
+        description: "Você alcançou sua meta de economia!",
+      })
+    }
+
+    const dataToSave = {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      targetAmount,
+      savedAmount,
+      streak: newStreak,
+      lastSaveDate: today.toISOString(),
+      achievements: newAchievements
+    }
+    localStorage.setItem('savingsCalculatorData', JSON.stringify(dataToSave))
+    setStreak(newStreak)
+    setLastSaveDate(today)
+    setAchievements(newAchievements)
+    toast({
+      title: "Progresso salvo",
+      description: `Seus dados foram salvos com sucesso. Sequência atual: ${newStreak} dias.`,
+    })
+  }
+
+  const dailyChallenge = {
+    description: "Economize o valor diário recomendado",
+    reward: "Mantenha sua sequência e ganhe pontos extras!"
+  }
+
+  return (
+    <Card className="w-full max-w-2xl">
+      <CardHeader>
+        <CardTitle>Calculadora de Economia - Meta R$ {targetAmount.toLocaleString('pt-BR')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Data de Início</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(startDate, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={(date) => date && setStartDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endDate">Data Final</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(endDate, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={(date) => date && setEndDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="targetAmount">Meta de Economia</Label>
+            <Input
+              id="targetAmount"
+              type="number"
+              value={targetAmount}
+              onChange={(e) => setTargetAmount(Number(e.target.value))}
+              className="w-full"
+              min="0"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-blue-100 rounded-lg">
+              <p className="text-lg font-semibold">Por Dia</p>
+              <p className="text-2xl">R$ {dailyAmount.toFixed(2)}</p>
+            </div>
+            <div className="p-4 bg-green-100 rounded-lg">
+              <p className="text-lg font-semibold">Por Semana</p>
+              <p className="text-2xl">R$ {weeklyAmount.toFixed(2)}</p>
+            </div>
+            <div className="p-4 bg-purple-100 rounded-lg">
+              <p className="text-lg font-semibold">Por Mês</p>
+              <p className="text-2xl">R$ {monthlyAmount.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-lg font-semibold">Informações do Período:</p>
+            <ul className="list-disc pl-6">
+              <li>Total de dias: {totalDays} dias</li>
+              <li>Total de semanas: {totalWeeks} semanas</li>
+              <li>Meses completos: {Math.floor(totalDays / 30)} meses</li>
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="savedAmount">Quanto você já economizou?</Label>
+            <Input
+              id="savedAmount"
+              type="number"
+              value={savedAmount}
+              onChange={(e) => setSavedAmount(Number(e.target.value))}
+              className="w-full"
+              min="0"
+              max={targetAmount}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Progresso:</p>
+            <Progress value={progressPercentage} className="w-full" />
+            <p className="text-right">{progressPercentage.toFixed(1)}%</p>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <Zap className="h-5 w-5 text-yellow-500" />
+              <span className="font-semibold">Sequência: {streak} dias</span>
+            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Trophy className="h-5 w-5 mr-2" />
+                  Conquistas
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Suas Conquistas</DialogTitle>
+                  <DialogDescription>
+                    Continue economizando para desbloquear mais conquistas!
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  {achievements.map((achievement, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <Trophy className="h-5 w-5 text-yellow-500" />
+                      <span>{achievement}</span>
+                    </div>
+                  ))}
+                  {achievements.length === 0 && (
+                    <p>Você ainda não tem conquistas. Continue economizando!</p>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="bg-green-100 p-4 rounded-lg">
+            <h3 className="font-semibold mb-2">Desafio Diário:</h3>
+            <p>{dailyChallenge.description}</p>
+            <p className="text-sm text-green-700 mt-1">{dailyChallenge.reward}</p>
+          </div>
+
+          <Button onClick={saveProgress} className="w-full">
+            <Save className="mr-2 h-4 w-4" />
+            Salvar Progresso
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default EnhancedSavingsCalculator
